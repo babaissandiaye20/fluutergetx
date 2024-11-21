@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "25126641670",
+    "firebase_url": "https://gestionecole-25347-default-rtdb.firebaseio.com",
+    "project_id": "gestionecole-25347",
+    "storage_bucket": "gestionecole-25347.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:25126641670:android:b5df048ee73503ce20a387",
+        "android_client_info": {
+          "package_name": "wavemercredi.wave_mercredi"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "25126641670-bo4fu9auhc7gmlkn8i3hr2c5aru1rcvo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACRetSTHMo6HqVzB2tklU8gBE4cS5UAvM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "25126641670-bo4fu9auhc7gmlkn8i3hr2c5aru1rcvo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
