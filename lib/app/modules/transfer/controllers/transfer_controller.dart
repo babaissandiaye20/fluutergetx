@@ -3,13 +3,15 @@ import 'package:get/get.dart';
 import 'package:wave_mercredi/app/services/firestore_services.dart';
 import 'package:wave_mercredi/app/models/user_model.dart';
 import 'package:wave_mercredi/app/models/transaction_model.dart' as custom;
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class TransferController extends GetxController {
   final FirestoreService _firestoreService = FirestoreService();
 
   final Rx<User?> currentUser = Rx<User?>(null);
   final RxList<User> multipleReceivers = <User>[].obs;
-  final RxList<User> contactsList = <User>[].obs;
+  final RxList<ContactWithAvailability> contactsList = <ContactWithAvailability>[].obs;
   final RxBool payFeesBySender = true.obs;
   final RxDouble amount = RxDouble(0.0);
   final RxBool isLoading = false.obs;
@@ -21,19 +23,74 @@ class TransferController extends GetxController {
   void onInit() {
     super.onInit();
     currentUser.value = Get.arguments;
-    loadContacts();
+    loadAllContacts();
   }
 
-  void loadContacts() async {
+  Future<void> loadAllContacts() async {
     try {
-      final users = await _firestoreService.getAllUsers();
-      contactsList.value = users.where((user) => 
-        user.id != currentUser.value?.id && 
-        user.phoneNumber != null && 
-        user.phoneNumber!.isNotEmpty
-      ).toList();
+      // Demander la permission d'accès aux contacts
+      if (!await FlutterContacts.requestPermission(readonly: true)) {
+        _showErrorSnackbar('Erreur', 'Permission d\'accès aux contacts refusée');
+        return;
+      }
+
+      isLoading.value = true;
+
+      // Charger les contacts du téléphone
+      final phoneContacts = await FlutterContacts.getContacts(
+        withProperties: true,
+        withPhoto: false,
+      );
+
+      // Charger les utilisateurs de la base de données
+      final dbUsers = await _firestoreService.getAllUsers();
+      
+      // Créer une liste combinée
+      final List<ContactWithAvailability> combinedContacts = [];
+
+      for (final contact in phoneContacts) {
+        if (contact.phones.isNotEmpty) {
+          final phoneNumber = contact.phones.first.number.replaceAll(RegExp(r'\D'), '');
+          final dbUser = dbUsers.firstWhereOrNull(
+            (user) => user.phoneNumber?.replaceAll(RegExp(r'\D'), '') == phoneNumber
+          );
+
+          combinedContacts.add(
+            ContactWithAvailability(
+              contact: contact,
+              dbUser: dbUser,
+              isAvailable: dbUser != null,
+            ),
+          );
+        }
+      }
+
+      // Trier les contacts: disponibles en premier, puis par ordre alphabétique
+      combinedContacts.sort((a, b) {
+        if (a.isAvailable && !b.isAvailable) return -1;
+        if (!a.isAvailable && b.isAvailable) return 1;
+        return a.contact.displayName.compareTo(b.contact.displayName);
+      });
+
+      contactsList.value = combinedContacts;
     } catch (e) {
-      _showErrorSnackbar('Erreur de chargement des contacts', e.toString());
+      _showErrorSnackbar('Erreur', 'Impossible de charger les contacts: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Méthode pour mettre à jour l'utilisateur courant
+  Future<void> updateCurrentUser() async {
+    try {
+      if (currentUser.value?.id != null) {
+        final updatedUser = await _firestoreService.getUserById(currentUser.value!.id);
+        if (updatedUser != null) {
+          currentUser.value = updatedUser;
+        }
+      }
+    } catch (e) {
+      print('Erreur lors de la mise à jour de l\'utilisateur: $e');
     }
   }
 
@@ -71,9 +128,23 @@ class TransferController extends GetxController {
           phoneNumber.value = user.phoneNumber ?? '';
         }
       } else {
-        receiverUser.value = null;
-        phoneNumber.value = '';
-        if (phone.isNotEmpty) {
+        // Si l'utilisateur n'existe pas dans la base de données,
+        // chercher dans les contacts du téléphone
+        final matchingContact = contactsList.firstWhereOrNull(
+          (contact) => contact.contact.phones.any(
+            (phone) => phone.number.replaceAll(RegExp(r'\D'), '').endsWith(cleanedPhone)
+          )
+        );
+
+        if (matchingContact != null) {
+          // Créer un nouvel utilisateur temporaire
+          _showSuccessSnackbar(
+            'Contact trouvé',
+            'Ce numéro sera enregistré automatiquement lors du premier transfert'
+          );
+        } else {
+          receiverUser.value = null;
+          phoneNumber.value = '';
           _showErrorSnackbar('Recherche', 'Aucun utilisateur trouvé pour ce numéro.');
         }
       }
@@ -84,12 +155,21 @@ class TransferController extends GetxController {
     }
   }
 
-  void selectReceiver(User user) {
-    if (isMultipleTransferMode.value) {
-      addMultipleReceiver(user);
+  void selectReceiver(ContactWithAvailability contact) {
+    if (contact.dbUser != null) {
+      if (isMultipleTransferMode.value) {
+        addMultipleReceiver(contact.dbUser!);
+      } else {
+        receiverUser.value = contact.dbUser;
+        phoneNumber.value = contact.dbUser?.phoneNumber ?? '';
+      }
     } else {
-      receiverUser.value = user;
-      phoneNumber.value = user.phoneNumber ?? '';
+      // Gérer le cas d'un contact qui n'est pas dans la base de données
+      _showSuccessSnackbar(
+        'Contact sélectionné',
+        'Ce contact sera enregistré automatiquement lors du premier transfert'
+      );
+      phoneNumber.value = contact.contact.phones.first.number;
     }
   }
 
@@ -116,7 +196,7 @@ class TransferController extends GetxController {
     }
   }
 
-  Future<void> performTransfer() async {
+ Future<void> performTransfer() async {
     if (currentUser.value == null) {
       _showErrorSnackbar('Erreur', 'Utilisateur non identifié');
       return;
@@ -131,26 +211,38 @@ class TransferController extends GetxController {
       return;
     }
 
+    for (var receiver in receivers) {
+      if (receiver.id == currentUser.value!.id) {
+        _showErrorSnackbar(
+          'Erreur', 
+          'Vous ne pouvez pas effectuer un transfert vers vous-même'
+        );
+        return;
+      }
+    }
+
     try {
       isLoading.value = true;
 
       final receiversCount = receivers.length;
+      const feePercentage = 0.01; // 1% de frais
 
-      // Calculate total amount with fees
+      // Calcul du montant et des frais selon qui paie
       double totalAmount;
       double amountPerReceiver;
       
       if (payFeesBySender.value) {
-        // Full amount to each receiver, plus 1% fee on total
-        amountPerReceiver = amount.value;
-        totalAmount = amount.value * receiversCount + (amount.value * receiversCount * 0.01);
+        // L'expéditeur paie les frais
+        amountPerReceiver = amount.value; // Montant complet pour le destinataire
+        double feesPerTransfer = amount.value * feePercentage;
+        totalAmount = (amount.value + feesPerTransfer) * receiversCount;
       } else {
-        // Slightly reduced amount per receiver to account for fees
-        amountPerReceiver = amount.value;
-        totalAmount = amount.value * receiversCount;
+        // Le destinataire paie les frais
+        amountPerReceiver = amount.value * (1 - feePercentage); // Montant réduit pour le destinataire
+        totalAmount = amount.value * receiversCount; // Montant total débité de l'expéditeur
       }
 
-      // Strict balance check
+      // Vérification du solde
       User sender = User.fromMap(currentUser.value!.toMap(), currentUser.value!.id);
       if (sender.balance < totalAmount) {
         _showErrorSnackbar('Solde insuffisant', 
@@ -159,49 +251,57 @@ class TransferController extends GetxController {
         return;
       }
 
-      // Update sender's balance
+      // Mise à jour du solde de l'expéditeur
       sender.balance = (sender.balance - totalAmount).clamp(0.0, double.infinity);
 
       List<custom.Transaction> transactions = [];
 
-      // Process each receiver
+      // Traitement pour chaque destinataire
       for (var receiver in receivers) {
         User receiverUser = User.fromMap(receiver.toMap(), receiver.id);
         
-        // Update receiver's balance with full amount
+        // Mise à jour du solde du destinataire avec le montant approprié
         receiverUser.balance += amountPerReceiver;
 
-        // Create transaction
-        final transaction = custom.Transaction(
-          id: DateTime.now().millisecondsSinceEpoch.toString() + '_${receivers.indexOf(receiver)}',
-          senderId: sender.id,
-          receiverId: receiverUser.id,
-          amount: amountPerReceiver,
-          type: custom.TransactionType.transfer
-        );
-
+        // Création de la transaction
+       final transaction = custom.Transaction(
+  id: DateTime.now().millisecondsSinceEpoch.toString() + '_${receivers.indexOf(receiver)}',
+  senderId: sender.id,
+  receiverId: receiverUser.id,
+  amount: amountPerReceiver,
+  type: custom.TransactionType.transfer,
+  feesPaidBySender: payFeesBySender.value // Ajouter cette information
+);
         transactions.add(transaction);
 
-        // Update receiver in database
+        // Mise à jour du destinataire dans la base de données
         await _firestoreService.updateUser(receiverUser.id, receiverUser.toMap());
       }
 
-      // Save transactions and update sender
+      // Sauvegarde des transactions et mise à jour de l'expéditeur
       for (var transaction in transactions) {
         await _firestoreService.addTransaction(transaction);
       }
       await _firestoreService.updateUser(sender.id, sender.toMap());
 
-      // Reset after transfer
+      // Mise à jour de l'utilisateur courant
+      await updateCurrentUser();
+
+      // Réinitialisation après le transfert
       _showSuccessSnackbar('Succès', 'Transfert effectué');
       clearReceiver();
       amount.value = 0.0;
+      
+      // Redirection vers la page d'accueil
+      Get.offNamed('/home', arguments: currentUser.value);
       
     } catch (e) {
       _showErrorSnackbar('Erreur', 'Une erreur est survenue : ${e.toString()}');
     } finally {
       isLoading.value = false;
     }
+  }
+
   }
 
   void _showErrorSnackbar(String title, String message) {
@@ -223,4 +323,17 @@ class TransferController extends GetxController {
       duration: const Duration(seconds: 3)
     );
   }
+
+
+// Nouvelle classe pour combiner les contacts du téléphone avec les informations de disponibilité
+class ContactWithAvailability {
+  final Contact contact;
+  final User? dbUser;
+  final bool isAvailable;
+
+  ContactWithAvailability({
+    required this.contact,
+    required this.dbUser,
+    required this.isAvailable,
+  });
 }

@@ -26,15 +26,6 @@ class TransferView extends GetView<TransferController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Ajout de widgets de débogage
-                Obx(() => Column(
-                  children: [
-                    Text('Receiver: ${controller.receiverUser.value?.firstName ?? "Aucun"}'),
-                    Text('Multiple Receivers: ${controller.multipleReceivers.length}'),
-                    Text('Phone Number: ${controller.phoneNumber.value}'),
-                  ],
-                )),
-
                 // Mode de transfert
                 Text(
                   controller.isMultipleTransferMode.value 
@@ -66,28 +57,66 @@ class TransferView extends GetView<TransferController> {
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
-                  height: 100,
+                  height: 120,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: controller.contactsList.length,
                     itemBuilder: (context, index) {
-                      final contact = controller.contactsList[index];
+                      final contactWithAvailability = controller.contactsList[index];
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: GestureDetector(
-                          onTap: () => controller.selectReceiver(contact),
+                          onTap: () => controller.selectReceiver(contactWithAvailability),
                           child: Column(
                             children: [
-                              CircleAvatar(
-                                radius: 30,
-                                backgroundColor: const Color(0xFF2196F3),
-                                child: Text(
-                                  contact.firstName[0].toUpperCase(),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
+                              Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 30,
+                                    backgroundColor: contactWithAvailability.isAvailable 
+                                      ? const Color(0xFF2196F3)
+                                      : Colors.grey,
+                                    child: Text(
+                                      contactWithAvailability.contact.displayName[0].toUpperCase(),
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                  if (contactWithAvailability.isAvailable)
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.green,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.check,
+                                          size: 12,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               const SizedBox(height: 5),
-                              Text(contact.firstName),
+                              Text(
+                                contactWithAvailability.contact.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                contactWithAvailability.isAvailable 
+                                  ? 'Disponible' 
+                                  : 'Non inscrit',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: contactWithAvailability.isAvailable 
+                                    ? Colors.green 
+                                    : Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -111,7 +140,7 @@ class TransferView extends GetView<TransferController> {
                       ...controller.multipleReceivers.map((receiver) => Card(
                         child: ListTile(
                           title: Text('${receiver.firstName} ${receiver.lastName}'),
-                          subtitle: Text(receiver.phoneNumber),
+                          subtitle: Text(receiver.phoneNumber ?? ''),
                           trailing: IconButton(
                             icon: const Icon(Icons.remove_circle),
                             onPressed: () => controller.removeMultipleReceiver(receiver),
@@ -126,8 +155,10 @@ class TransferView extends GetView<TransferController> {
                     controller.receiverUser.value != null)
                   Card(
                     child: ListTile(
-                      title: Text('${controller.receiverUser.value!.firstName} ${controller.receiverUser.value!.lastName}'),
-                      subtitle: Text(controller.receiverUser.value!.phoneNumber),
+                      title: Text(
+                        '${controller.receiverUser.value!.firstName} ${controller.receiverUser.value!.lastName}'
+                      ),
+                      subtitle: Text(controller.receiverUser.value!.phoneNumber ?? ''),
                       trailing: IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: controller.clearReceiver,
@@ -155,7 +186,11 @@ class TransferView extends GetView<TransferController> {
                 // Option de paiement des frais
                 SwitchListTile(
                   title: const Text('Payer les frais'),
-                  subtitle: const Text('Le montant des frais sera déduit de votre solde'),
+                  subtitle: Text(
+                    controller.payFeesBySender.value
+                      ? 'Les frais seront déduits de votre solde'
+                      : 'Les frais seront déduits du montant envoyé'
+                  ),
                   value: controller.payFeesBySender.value,
                   onChanged: (_) => controller.toggleFeePaymentMethod(),
                 ),
@@ -180,7 +215,7 @@ class TransferView extends GetView<TransferController> {
                     controller.isMultipleTransferMode.value 
                       ? 'Effectuer le transfert multiple' 
                       : 'Effectuer le transfert',
-                    style: const TextStyle(fontSize: 16),
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
               ],
@@ -190,9 +225,12 @@ class TransferView extends GetView<TransferController> {
           // Indicateur de chargement
           if (controller.isLoading.value)
             const Positioned.fill(
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF2196F3),
+              child: ColoredBox(
+                color: Color(0x80FFFFFF),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF2196F3),
+                  ),
                 ),
               ),
             ),

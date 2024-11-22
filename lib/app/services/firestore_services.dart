@@ -8,6 +8,7 @@ class FirestoreService {
   Future addTransaction(custom.Transaction transaction) async {
     await _firestore.collection('transactions').doc(transaction.id).set(transaction.toMap());
   }
+  
 
   Future setUser(String userId, User user) async {
     final userRef = _firestore.collection('users').doc(userId);
@@ -157,4 +158,95 @@ class FirestoreService {
       return null;
     }
   }
+
+
+  // Dans FirestoreService
+Stream<User?> getUserStream(String userId) {
+  return _firestore
+      .collection('users')
+      .doc(userId)
+      .snapshots()
+      .map((doc) => doc.exists ? User.fromMap(doc.data()!, doc.id) : null);
+}
+
+Stream<QuerySnapshot> getTransactionStreamByUser(String userId) {
+  return _firestore
+      .collection('transactions')
+      .where('senderId', isEqualTo: userId)
+      .snapshots();
+}
+
+   Future<bool> cancelTransaction(custom.Transaction transaction, String currentUserId) async {
+    try {
+      return await _firestore.runTransaction((transactionDb) async {
+        // Vérifier si l'utilisateur est l'expéditeur
+        if (transaction.senderId != currentUserId) {
+          throw Exception('Seul l\'expéditeur peut annuler la transaction');
+        }
+
+        // Vérifier si la transaction n'est pas déjà annulée
+        final transactionDoc = await transactionDb.get(
+          _firestore.collection('transactions').doc(transaction.id)
+        );
+        
+        if ((transactionDoc.data() as Map<String, dynamic>)['status'] == 'cancelled') {
+          throw Exception('Cette transaction a déjà été annulée');
+        }
+
+        // Vérifier si la transaction peut être annulée (30 minutes)
+        final timeDifference = DateTime.now().difference(transaction.timestamp);
+        if (timeDifference.inMinutes > 30) {
+          throw Exception('La transaction ne peut plus être annulée après 30 minutes');
+        }
+
+        // Récupérer les documents des utilisateurs
+        final senderDoc = await transactionDb.get(
+          _firestore.collection('users').doc(transaction.senderId)
+        );
+        final receiverDoc = await transactionDb.get(
+          _firestore.collection('users').doc(transaction.receiverId)
+        );
+
+        if (!senderDoc.exists || !receiverDoc.exists) {
+          throw Exception('Utilisateur non trouvé');
+        }
+
+        final receiverData = receiverDoc.data() as Map<String, dynamic>;
+        final receiverBalance = receiverData['balance'] as double;
+
+        // Vérifier si le destinataire a suffisamment de fonds
+        if (receiverBalance < transaction.amount) {
+          throw Exception('Solde insuffisant pour annuler la transaction');
+        }
+
+        // Mettre à jour les soldes
+        final senderData = senderDoc.data() as Map<String, dynamic>;
+        final senderBalance = senderData['balance'] as double;
+
+        transactionDb.update(
+          _firestore.collection('users').doc(transaction.senderId),
+          {'balance': senderBalance + transaction.amount}
+        );
+
+        transactionDb.update(
+          _firestore.collection('users').doc(transaction.receiverId),
+          {'balance': receiverBalance - transaction.amount}
+        );
+
+        // Marquer la transaction comme annulée
+        transactionDb.update(
+          _firestore.collection('transactions').doc(transaction.id),
+          {'status': 'cancelled'}
+        );
+
+        return true;
+      });
+    } catch (e) {
+      print('Erreur lors de l\'annulation de la transaction: $e');
+      rethrow;
+    }
+  }
+
+
+
 }

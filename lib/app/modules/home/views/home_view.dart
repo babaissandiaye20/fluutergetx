@@ -114,6 +114,34 @@ class HomeView extends StatelessWidget {
     );
   }
 
+  void _showCancelConfirmation(BuildContext context, TransactionDisplay transaction) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Annuler la transaction'),
+          content: const Text(
+            'Êtes-vous sûr de vouloir annuler cette transaction ? '
+            'Cette action est irréversible.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Non'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                controller.cancelTransfer(transaction);
+              },
+              child: const Text('Oui'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -139,7 +167,7 @@ class HomeView extends StatelessWidget {
       body: Stack(
         children: [
           RefreshIndicator(
-            onRefresh: () => controller.loadTransactions(),
+            onRefresh: () => controller.refreshData(),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -226,74 +254,107 @@ class HomeView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Obx(() {
-                    if (controller.isLoading.value) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    }
-                    
-                    if (controller.transactions.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'Aucune transaction',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      );
-                    }
+                 Obx(() {
+  if (controller.isLoading.value) {
+    return const Center(
+      child: CircularProgressIndicator(),
+    );
+  }
+  
+  if (controller.transactions.isEmpty) {
+    return const Center(
+      child: Text(
+        'Aucune transaction',
+        style: TextStyle(
+          fontSize: 16,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
 
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: controller.transactions.length,
-                      separatorBuilder: (context, index) => const Divider(),
-                      itemBuilder: (context, index) {
-                        final transaction = controller.transactions[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: const Color(0xFFBBDEFB),
-                            child: FaIcon(
-                              _getTransactionIcon(transaction),
-                              color: const Color(0xFF1976D2),
-                            ),
-                          ),
-                          title: Text(
-                            transaction.description,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (transaction.otherUserName.isNotEmpty)
-                                Text(transaction.otherUserName),
-                              Text(
-                                DateFormat('dd/MM/yyyy HH:mm').format(transaction.timestamp),
-                              ),
-                            ],
-                          ),
-                          trailing: Text(
-                            '${transaction.amount} FCFA',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: transaction.isPositive
-                                  ? Colors.green
-                                  : const Color(0xFF1976D2),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  }),
+  return ListView.separated(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: controller.transactions.length,
+    separatorBuilder: (context, index) => const Divider(),
+    itemBuilder: (context, index) {
+      final transaction = controller.transactions[index];
+
+      return ListTile(
+        leading: CircleAvatar(
+          backgroundColor: transaction.status == 'cancelled' 
+              ? Colors.grey[300]
+              : const Color(0xFFBBDEFB),
+          child: FaIcon(
+            _getTransactionIcon(transaction),
+            color: transaction.status == 'cancelled'
+                ? Colors.grey
+                : const Color(0xFF1976D2),
+          ),
+        ),
+        title: Text(
+          transaction.description,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: transaction.status == 'cancelled' ? Colors.grey : Colors.black,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (transaction.otherUserName.isNotEmpty)
+              Text(
+                transaction.otherUserName,
+                style: TextStyle(
+                  color: transaction.status == 'cancelled' ? Colors.grey : null,
+                ),
+              ),
+            Text(
+              DateFormat('dd/MM/yyyy HH:mm').format(transaction.timestamp),
+              style: TextStyle(
+                color: transaction.status == 'cancelled' ? Colors.grey : null,
+              ),
+            ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${transaction.amount} FCFA',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: transaction.status == 'cancelled'
+                    ? Colors.grey
+                    : (transaction.isPositive ? Colors.green : const Color(0xFF1976D2)),
+              ),
+            ),
+            if (transaction.canCancel)
+              IconButton(
+                icon: const FaIcon(
+                  FontAwesomeIcons.rotateLeft,
+                  size: 18,
+                ),
+                onPressed: () => _showCancelConfirmation(
+                  context,
+                  transaction,
+                ),
+                color: const Color(0xFF1976D2),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+})
                 ],
               ),
             ),
           ),
-          Positioned(
+           Positioned(
             right: 20,
-            bottom: 20,
+            bottom: 110, // Ajuster la position du bouton QR code
             child: FloatingActionButton.large(
               onPressed: () => _showQRModal(context),
               backgroundColor: const Color(0xFF2196F3),
