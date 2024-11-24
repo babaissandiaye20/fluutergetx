@@ -5,6 +5,8 @@ import '../controllers/home_controller.dart';
 import 'package:wave_mercredi/app/models/user_model.dart';
 import 'package:intl/intl.dart';
 import 'package:wave_mercredi/app/models/transaction_model.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 class HomeView extends StatelessWidget {
   HomeView({super.key});
@@ -75,11 +77,17 @@ class HomeView extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const FaIcon(
-                    FontAwesomeIcons.qrcode,
-                    size: 250,
-                    color: Color(0xFF1976D2),
-                  ),
+                  child: controller.currentUser.value != null
+                      ? QrImageView(
+                          data: controller.currentUser.value!.phoneNumber,
+                          version: QrVersions.auto,
+                          size: 250,
+                        )
+                      : const FaIcon(
+                          FontAwesomeIcons.qrcode,
+                          size: 250,
+                          color: Color(0xFF1976D2),
+                        ),
                 ),
               ),
             ),
@@ -114,7 +122,8 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  void _showCancelConfirmation(BuildContext context, TransactionDisplay transaction) {
+  void _showCancelConfirmation(
+      BuildContext context, TransactionDisplay transaction) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -139,6 +148,107 @@ class HomeView extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  void _showScanner(BuildContext context, String type) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(25),
+            topRight: Radius.circular(25),
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    type == 'deposit'
+                        ? 'Scanner pour dépôt'
+                        : 'Scanner pour retrait',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1976D2),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.xmark),
+                    onPressed: () => Navigator.pop(context),
+                    color: const Color(0xFF1976D2),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: MobileScanner(
+                controller: MobileScannerController(
+                  detectionSpeed: DetectionSpeed.normal,
+                  facing: CameraFacing.back,
+                ),
+                onDetect: (capture) {
+                  final List<Barcode> barcodes = capture.barcodes;
+                  for (final barcode in barcodes) {
+                    debugPrint('Barcode found: ${barcode.rawValue}');
+
+                    // Ajout de la condition pour le dépôt
+                    if (type == 'deposit' && barcode.rawValue != null) {
+                      Navigator.pop(context);
+                      Get.toNamed('/deposit', arguments: {
+                        'senderId': controller.currentUser.value!.id,
+                        'receiverPhone': barcode.rawValue
+                      });
+                    }
+                    // Condition pour le retrait (à adapter selon vos besoins)
+                    else if (type == 'withdrawal' && barcode.rawValue != null) {
+                      Navigator.pop(context);
+                      Get.toNamed('/withdrawal', arguments: {
+                        'senderPhone': barcode.rawValue,
+                        'receiverId': controller.currentUser.value!.id
+                      });
+                    } else if (type == 'ceiling' && barcode.rawValue != null) {
+                      Navigator.pop(context);
+                      Get.toNamed('/ceiling-update',
+                          arguments: {'targetPhone': barcode.rawValue});
+                    }
+                  }
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                type == 'deposit'
+                    ? 'Scannez le code QR pour effectuer un dépôt'
+                    : 'Scannez le code QR pour effectuer un retrait',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -210,40 +320,66 @@ class HomeView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 30),
-                  GridView.count(
-                    shrinkWrap: true,
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 15,
-                    crossAxisSpacing: 15,
-                    childAspectRatio: 1.1,
-                    children: [
-                      ActionButton(
-                        icon: FontAwesomeIcons.arrowDown,
-                        label: 'Dépôt',
-                        onPressed: () {},
-                      ),
-                      ActionButton(
-                        icon: FontAwesomeIcons.arrowUp,
-                        label: 'Retrait',
-                        onPressed: () {},
-                      ),
-                      ActionButton(
-                        icon: FontAwesomeIcons.moneyCheck,
-                        label: 'Paiement',
-                        onPressed: () {},
-                      ),
-                      ActionButton(
-                        icon: FontAwesomeIcons.arrowsRotate,
-                        label: 'Transfert',
-                        onPressed: () => Get.toNamed('/transfer', arguments: controller.currentUser.value),
-                      ),
-                      ActionButton(
-                        icon: FontAwesomeIcons.arrowTrendUp,
-                        label: 'Déplafonnement',
-                        onPressed: () {},
-                      ),
-                    ],
-                  ),
+                  Obx(() {
+                    final currentUser = controller.currentUser.value;
+
+                    return GridView.count(
+                      shrinkWrap: true,
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 15,
+                      crossAxisSpacing: 15,
+                      childAspectRatio: 1.1,
+                      children: [
+                        // Full access for agents and admins
+                        if (currentUser != null &&
+                            ['agent', 'admin'].contains(currentUser.role)) ...[
+                          ActionButton(
+                            icon: FontAwesomeIcons.arrowDown,
+                            label: 'Dépôt',
+                            onPressed: () => _showScanner(context, 'deposit'),
+                          ),
+                          ActionButton(
+                            icon: FontAwesomeIcons.arrowUp,
+                            label: 'Retrait',
+                            onPressed: () =>
+                                _showScanner(context, 'withdrawal'),
+                          ),
+                          ActionButton(
+                            icon: FontAwesomeIcons.moneyCheck,
+                            label: 'Paiement',
+                            onPressed: () {},
+                          ),
+                          ActionButton(
+                            icon: FontAwesomeIcons.arrowsRotate,
+                            label: 'Transfert',
+                            onPressed: () => Get.toNamed('/transfer',
+                                arguments: currentUser),
+                          ),
+                            ActionButton(
+  icon: FontAwesomeIcons.arrowTrendUp,
+  label: 'Déplafonnement',
+  onPressed: () => _showScanner(context, 'ceiling'),
+),                       
+                        ],
+
+                        // Only Payment and Transfer for other roles
+                        if (currentUser != null &&
+                            !['agent', 'admin'].contains(currentUser.role)) ...[
+                          ActionButton(
+                            icon: FontAwesomeIcons.moneyCheck,
+                            label: 'Paiement',
+                            onPressed: () {},
+                          ),
+                          ActionButton(
+                            icon: FontAwesomeIcons.arrowsRotate,
+                            label: 'Transfert',
+                            onPressed: () => Get.toNamed('/transfer',
+                                arguments: currentUser),
+                          ),
+                        ],
+                      ],
+                    );
+                  }),
                   const SizedBox(height: 20),
                   const Text(
                     'Transactions récentes',
@@ -254,107 +390,116 @@ class HomeView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                 Obx(() {
-  if (controller.isLoading.value) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
-  }
-  
-  if (controller.transactions.isEmpty) {
-    return const Center(
-      child: Text(
-        'Aucune transaction',
-        style: TextStyle(
-          fontSize: 16,
-          color: Colors.grey,
-        ),
-      ),
-    );
-  }
+                  Obx(() {
+                    if (controller.isLoading.value) {
+                      return const Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    }
 
-  return ListView.separated(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: controller.transactions.length,
-    separatorBuilder: (context, index) => const Divider(),
-    itemBuilder: (context, index) {
-      final transaction = controller.transactions[index];
+                    if (controller.transactions.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'Aucune transaction',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      );
+                    }
 
-      return ListTile(
-        leading: CircleAvatar(
-          backgroundColor: transaction.status == 'cancelled' 
-              ? Colors.grey[300]
-              : const Color(0xFFBBDEFB),
-          child: FaIcon(
-            _getTransactionIcon(transaction),
-            color: transaction.status == 'cancelled'
-                ? Colors.grey
-                : const Color(0xFF1976D2),
-          ),
-        ),
-        title: Text(
-          transaction.description,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: transaction.status == 'cancelled' ? Colors.grey : Colors.black,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (transaction.otherUserName.isNotEmpty)
-              Text(
-                transaction.otherUserName,
-                style: TextStyle(
-                  color: transaction.status == 'cancelled' ? Colors.grey : null,
-                ),
-              ),
-            Text(
-              DateFormat('dd/MM/yyyy HH:mm').format(transaction.timestamp),
-              style: TextStyle(
-                color: transaction.status == 'cancelled' ? Colors.grey : null,
-              ),
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${transaction.amount} FCFA',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: transaction.status == 'cancelled'
-                    ? Colors.grey
-                    : (transaction.isPositive ? Colors.green : const Color(0xFF1976D2)),
-              ),
-            ),
-            if (transaction.canCancel)
-              IconButton(
-                icon: const FaIcon(
-                  FontAwesomeIcons.rotateLeft,
-                  size: 18,
-                ),
-                onPressed: () => _showCancelConfirmation(
-                  context,
-                  transaction,
-                ),
-                color: const Color(0xFF1976D2),
-              ),
-          ],
-        ),
-      );
-    },
-  );
-})
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: controller.transactions.length,
+                      separatorBuilder: (context, index) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final transaction = controller.transactions[index];
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: transaction.status == 'cancelled'
+                                ? Colors.grey[300]
+                                : const Color(0xFFBBDEFB),
+                            child: FaIcon(
+                              _getTransactionIcon(transaction),
+                              color: transaction.status == 'cancelled'
+                                  ? Colors.grey
+                                  : const Color(0xFF1976D2),
+                            ),
+                          ),
+                          title: Text(
+                            transaction.description,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: transaction.status == 'cancelled'
+                                  ? Colors.grey
+                                  : Colors.black,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (transaction.otherUserName.isNotEmpty)
+                                Text(
+                                  transaction.otherUserName,
+                                  style: TextStyle(
+                                    color: transaction.status == 'cancelled'
+                                        ? Colors.grey
+                                        : null,
+                                  ),
+                                ),
+                              Text(
+                                DateFormat('dd/MM/yyyy HH:mm')
+                                    .format(transaction.timestamp),
+                                style: TextStyle(
+                                  color: transaction.status == 'cancelled'
+                                      ? Colors.grey
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${transaction.amount} FCFA',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: transaction.status == 'cancelled'
+                                      ? Colors.grey
+                                      : (transaction.isPositive
+                                          ? Colors.green
+                                          : const Color(0xFF1976D2)),
+                                ),
+                              ),
+                              if (transaction.canCancel)
+                                IconButton(
+                                  icon: const FaIcon(
+                                    FontAwesomeIcons.rotateLeft,
+                                    size: 18,
+                                  ),
+                                  onPressed: () => _showCancelConfirmation(
+                                    context,
+                                    transaction,
+                                  ),
+                                  color: const Color(0xFF1976D2),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  })
                 ],
               ),
             ),
           ),
-           Positioned(
+          Positioned(
             right: 20,
-            bottom: 110, // Ajuster la position du bouton QR code
+            bottom: 130, // Ajuster la position du bouton QR code
             child: FloatingActionButton.large(
               onPressed: () => _showQRModal(context),
               backgroundColor: const Color(0xFF2196F3),

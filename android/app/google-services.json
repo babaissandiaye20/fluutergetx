@@ -8,6 +8,86 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:25126641670:android:b4711520049284a820a387",
+        "android_client_info": {
+          "package_name": "com.wavel.wavel"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "25126641670-tonpjhpbk6e00esanh1joadmpjsa77vv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wavel.wavel",
+            "certificate_hash": "cb7d45aa6c1d21adeecc08813e19576347346512"
+          }
+        },
+        {
+          "client_id": "25126641670-bo4fu9auhc7gmlkn8i3hr2c5aru1rcvo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACRetSTHMo6HqVzB2tklU8gBE4cS5UAvM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "25126641670-bo4fu9auhc7gmlkn8i3hr2c5aru1rcvo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "25126641670-qserprvmtq45d7pbrsofm7plv2sstm5v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.wavelast.wavelast"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:25126641670:android:0e4daeedd4efa2c220a387",
+        "android_client_info": {
+          "package_name": "com.wavelast.wavelast"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "25126641670-bo4fu9auhc7gmlkn8i3hr2c5aru1rcvo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACRetSTHMo6HqVzB2tklU8gBE4cS5UAvM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "25126641670-bo4fu9auhc7gmlkn8i3hr2c5aru1rcvo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "25126641670-qserprvmtq45d7pbrsofm7plv2sstm5v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.wavelast.wavelast"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:25126641670:android:b5df048ee73503ce20a387",
         "android_client_info": {
           "package_name": "wavemercredi.wave_mercredi"
@@ -30,6 +110,13 @@
             {
               "client_id": "25126641670-bo4fu9auhc7gmlkn8i3hr2c5aru1rcvo.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "25126641670-qserprvmtq45d7pbrsofm7plv2sstm5v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.wavelast.wavelast"
+              }
             }
           ]
         }

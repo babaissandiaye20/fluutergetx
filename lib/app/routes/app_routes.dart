@@ -7,6 +7,10 @@ abstract class Routes {
   static const LOGIN = _Paths.LOGIN;
   static const REGISTER = _Paths.REGISTER;
   static const TRANSFER = _Paths.TRANSFER;
+  static const COMPLETE_PROFILE = _Paths.COMPLETE_PROFILE;
+  static const DEPOSIT = _Paths.DEPOSIT;
+  static const WITHDRAWAL = _Paths.WITHDRAWAL;
+  static const CEILING = _Paths.CEILING;
 }
 
 abstract class _Paths {
@@ -16,4 +20,8 @@ abstract class _Paths {
   static const REGISTER = '/register';
   static const TRANSACTION = '/transaction';
   static const TRANSFER = '/transfer';
+  static const COMPLETE_PROFILE = '/complete-profile';
+  static const DEPOSIT = '/deposit';
+  static const WITHDRAWAL = '/withdrawal';
+  static const CEILING = '/ceiling-update';
 }

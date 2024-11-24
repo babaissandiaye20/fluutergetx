@@ -8,7 +8,8 @@ import 'package:permission_handler/permission_handler.dart';
 
 class TransferController extends GetxController {
   final FirestoreService _firestoreService = FirestoreService();
-
+ final RxList<User> favoriteUsers = <User>[].obs;
+  final RxBool showFavorites = false.obs;
   final Rx<User?> currentUser = Rx<User?>(null);
   final RxList<User> multipleReceivers = <User>[].obs;
   final RxList<ContactWithAvailability> contactsList = <ContactWithAvailability>[].obs;
@@ -20,11 +21,24 @@ class TransferController extends GetxController {
   final Rx<User?> receiverUser = Rx<User?>(null);
 
   @override
+   @override
   void onInit() {
     super.onInit();
     currentUser.value = Get.arguments;
     loadAllContacts();
+    _loadFavorites();
   }
+
+  void _loadFavorites() {
+    if (currentUser.value?.id != null) {
+      _firestoreService
+          .getFavoriteUsersStream(currentUser.value!.id)
+          .listen((users) {
+        favoriteUsers.value = users;
+      });
+    }
+  }
+
 
   Future<void> loadAllContacts() async {
     try {
@@ -79,6 +93,36 @@ class TransferController extends GetxController {
       isLoading.value = false;
     }
   }
+  Future<void> toggleFavorite(User user) async {
+    if (currentUser.value == null) return;
+
+    try {
+      final isFav = await _firestoreService.isFavorite(
+        currentUser.value!.id,
+        user.id,
+      );
+
+      if (isFav) {
+        await _firestoreService.removeFavorite(
+          currentUser.value!.id,
+          user.id,
+        );
+        _showSuccessSnackbar('Favori supprimé', 'Contact retiré des favoris');
+      } else {
+        await _firestoreService.addFavorite(
+          currentUser.value!.id,
+          user.id,
+        );
+        _showSuccessSnackbar('Favori ajouté', 'Contact ajouté aux favoris');
+      }
+    } catch (e) {
+      _showErrorSnackbar('Erreur', 'Impossible de modifier les favoris');
+    }
+  }
+  void toggleShowFavorites() {
+    showFavorites.toggle();
+  }
+
 
   // Méthode pour mettre à jour l'utilisateur courant
   Future<void> updateCurrentUser() async {

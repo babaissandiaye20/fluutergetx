@@ -28,15 +28,29 @@ class _LoginViewState extends State<LoginView> {
           );
         },
         onSuccess: (user) {
-          // Safely navigate to home page
           Get.offAllNamed('/home', arguments: user);
         },
       );
     }
   }
 
+ void _loginWithGoogle() async {
+  await _loginController.signInWithGoogle(
+    onError: (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    },
+    onSuccess: (user, isFirstLogin) {
+      if (isFirstLogin) {
+        Get.toNamed('/complete-profile', arguments: {'user': user});
+      } else {
+        Get.offAllNamed('/home', arguments: user);
+      }
+    },
+  );
+}
   void _navigateToRegister() {
-    // Use Get.toNamed with explicit route
     Get.toNamed('/register');
   }
 
@@ -70,7 +84,6 @@ class _LoginViewState extends State<LoginView> {
                   if (value == null || value.isEmpty) {
                     return 'Veuillez entrer votre numéro de téléphone';
                   }
-                  // Vérification basique du format
                   if (!RegExp(r'^\d{9,10}$').hasMatch(value.replaceAll(RegExp(r'[^\d]'), ''))) {
                     return 'Numéro de téléphone invalide';
                   }
@@ -118,8 +131,19 @@ class _LoginViewState extends State<LoginView> {
                 ),
               ),
               const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _loginWithGoogle,
+                icon: const FaIcon(FontAwesomeIcons.google),
+                label: const Text('Connexion avec Google'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                ),
+              ),
+              const SizedBox(height: 20),
               TextButton(
-                onPressed: _navigateToRegister, // Use the new method
+                onPressed: _navigateToRegister,
                 child: const Text('Créer un compte'),
               ),
             ],
