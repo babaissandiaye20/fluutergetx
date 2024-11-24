@@ -6,6 +6,7 @@ import 'package:wave_mercredi/app/models/transaction_model.dart' as custom;
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+
 class TransferController extends GetxController {
   final FirestoreService _firestoreService = FirestoreService();
  final RxList<User> favoriteUsers = <User>[].obs;

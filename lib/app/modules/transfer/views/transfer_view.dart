@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/transfer_controller.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 class TransferView extends GetView<TransferController> {
   const TransferView({super.key});
@@ -49,7 +50,12 @@ class TransferView extends GetView<TransferController> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+                SwitchListTile(
+                  title: const Text('Afficher les favoris'),
+                  value: controller.showFavorites.value,
+                  onChanged: (_) => controller.toggleShowFavorites(),
+                ),
+
                 // Liste de contacts
                 Text(
                   'Ou sélectionnez un contact',
@@ -60,13 +66,28 @@ class TransferView extends GetView<TransferController> {
                   height: 120,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: controller.contactsList.length,
+                    itemCount: controller.showFavorites.value 
+                      ? controller.favoriteUsers.length
+                      : controller.contactsList.length,
                     itemBuilder: (context, index) {
-                      final contactWithAvailability = controller.contactsList[index];
+                      final contactWithAvailability = controller.showFavorites.value
+                        ? ContactWithAvailability(
+                            contact: Contact(
+                              displayName: '${controller.favoriteUsers[index].firstName} ${controller.favoriteUsers[index].lastName}',
+                              phones: [Phone(controller.favoriteUsers[index].phoneNumber ?? '')],
+                            ),
+                            dbUser: controller.favoriteUsers[index],
+                            isAvailable: true,
+                          )
+                        : controller.contactsList[index];
+
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: GestureDetector(
                           onTap: () => controller.selectReceiver(contactWithAvailability),
+                          onLongPress: contactWithAvailability.dbUser != null
+                            ? () => controller.toggleFavorite(contactWithAvailability.dbUser!)
+                            : null,
                           child: Column(
                             children: [
                               Stack(
@@ -82,20 +103,13 @@ class TransferView extends GetView<TransferController> {
                                     ),
                                   ),
                                   if (contactWithAvailability.isAvailable)
-                                    Positioned(
+                                    const Positioned(
                                       right: 0,
                                       bottom: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.green,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.check,
-                                          size: 12,
-                                          color: Colors.white,
-                                        ),
+                                      child: Icon(
+                                        Icons.star,
+                                        size: 16,
+                                        color: Colors.amber,
                                       ),
                                     ),
                                 ],
@@ -108,7 +122,7 @@ class TransferView extends GetView<TransferController> {
                               ),
                               Text(
                                 contactWithAvailability.isAvailable 
-                                  ? 'Disponible' 
+                                  ? 'Appui long pour favori'
                                   : 'Non inscrit',
                                 style: TextStyle(
                                   fontSize: 12,
