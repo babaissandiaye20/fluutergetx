@@ -8,7 +8,7 @@ class CompleteProfileView extends StatelessWidget {
   final User user;
   final CompleteProfileController controller = Get.put(CompleteProfileController());
 
-  CompleteProfileView({Key? key, required this.user}) : super(key: key) {
+  CompleteProfileView({super.key, required this.user}) {
     controller.initializeUser(user);
   }
 

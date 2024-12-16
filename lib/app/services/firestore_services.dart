@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:wave_mercredi/app/models/user_model.dart';
 import 'package:wave_mercredi/app/models/transaction_model.dart' as custom;
 import 'package:wave_mercredi/app/models/favorite_model.dart';
+import 'package:wave_mercredi/app/models/scheduledTransfer_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -12,6 +13,7 @@ class FirestoreService {
         .doc(transaction.id)
         .set(transaction.toMap());
   }
+
 
   Future setUser(String userId, User user) async {
     final userRef = _firestore.collection('users').doc(userId);
@@ -269,9 +271,10 @@ class FirestoreService {
     }
   }
 
+
   Future<void> addFavorite(String userId, String favoriteUserId) async {
     final favorite = Favorite(
-      id: '${userId}_${favoriteUserId}',
+      id: '${userId}_$favoriteUserId',
       userId: userId,
       favoriteUserId: favoriteUserId,
       createdAt: DateTime.now(),
@@ -287,7 +290,7 @@ class FirestoreService {
   Future<void> removeFavorite(String userId, String favoriteUserId) async {
     await _firestore
         .collection('favorites')
-        .doc('${userId}_${favoriteUserId}')
+        .doc('${userId}_$favoriteUserId')
         .delete();
   }
 
@@ -319,8 +322,65 @@ class FirestoreService {
   Future<bool> isFavorite(String userId, String favoriteUserId) async {
     final doc = await _firestore
         .collection('favorites')
-        .doc('${userId}_${favoriteUserId}')
+        .doc('${userId}_$favoriteUserId')
         .get();
     return doc.exists;
   }
+  
+  Future<void> addScheduledTransfer(ScheduledTransfer transfer) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('scheduledTransfers')
+          .doc(transfer.id)
+          .set(transfer.toMap());
+    } catch (e) {
+      print('Error adding scheduled transfer: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateScheduledTransfer(String id, Map<String, dynamic> data) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('scheduledTransfers')
+          .doc(id)
+          .update(data);
+    } catch (e) {
+      print('Error updating scheduled transfer: $e');
+      rethrow;
+    }
+  }
+
+  Stream<List<ScheduledTransfer>> getScheduledTransfersStream(String userId) {
+    return FirebaseFirestore.instance
+        .collection('scheduledTransfers')
+        .where('senderId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ScheduledTransfer.fromMap(
+                  doc.data(),
+                  doc.id,
+                ))
+            .toList());
+  }
+Future<void> deleteScheduledTransfer(String transferId) async {
+  try {
+    // Supprimer le transfert planifié
+    await _firestore.collection('scheduledTransfers').doc(transferId).delete();
+
+    // Supprimer la transaction associée
+    await _firestore.collection('transactions')
+      .where('id', isEqualTo: transferId)
+      .get()
+      .then((querySnapshot) {
+        for (var doc in querySnapshot.docs) {
+          doc.reference.delete();
+        }
+      });
+  } catch (e) {
+    print('Erreur lors de la suppression : $e');
+    throw e;
+  }
+}
+
 }

@@ -11,6 +11,7 @@ abstract class Routes {
   static const DEPOSIT = _Paths.DEPOSIT;
   static const WITHDRAWAL = _Paths.WITHDRAWAL;
   static const CEILING = _Paths.CEILING;
+  static const SCHEDULED_TRANSFER = _Paths.SCHEDULED_TRANSFER;
 }
 
 abstract class _Paths {
@@ -24,4 +25,5 @@ abstract class _Paths {
   static const DEPOSIT = '/deposit';
   static const WITHDRAWAL = '/withdrawal';
   static const CEILING = '/ceiling-update';
+  static const SCHEDULED_TRANSFER = '/scheduled-transfer';
 }

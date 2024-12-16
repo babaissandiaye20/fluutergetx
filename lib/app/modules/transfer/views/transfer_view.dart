@@ -160,7 +160,7 @@ class TransferView extends GetView<TransferController> {
                             onPressed: () => controller.removeMultipleReceiver(receiver),
                           ),
                         ),
-                      )).toList(),
+                      )),
                     ],
                   ),
 

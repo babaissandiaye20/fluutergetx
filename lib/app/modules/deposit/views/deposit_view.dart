@@ -4,7 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../controllers/deposit_controller.dart';
 
 class DepositView extends GetView<DepositController> {
-  const DepositView({Key? key}) : super(key: key);
+  const DepositView({super.key});
 
   @override
   Widget build(BuildContext context) {

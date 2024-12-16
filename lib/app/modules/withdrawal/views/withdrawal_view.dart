@@ -5,7 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../controllers/withdrawal_controller.dart';
 
 class WithdrawalView extends GetView<WithdrawalController> {
-  const WithdrawalView({Key? key}) : super(key: key);
+  const WithdrawalView({super.key});
 
   @override
   Widget build(BuildContext context) {

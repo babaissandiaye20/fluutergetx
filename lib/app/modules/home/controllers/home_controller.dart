@@ -99,13 +99,17 @@ class HomeController extends GetxController {
     try {
       isLoading.value = true;
 
-      final allTransactions =
-          await _firestoreService.getTransactionsByUser(currentUser.value!.id);
+      final allTransactions = await _firestoreService.getTransactionsByUser(currentUser.value!.id);
+      
+      // Filtrer pour exclure les transactions avec le statut "scheduled"
+      final filteredTransactions = allTransactions.where((transaction) => 
+        transaction.status != 'scheduled'
+      ).toList();
 
-      allTransactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      filteredTransactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
       final displayTransactions = await Future.wait(
-        allTransactions.map((transaction) async {
+        filteredTransactions.map((transaction) async {
           String description = '';
           String amount = '';
           String otherUserName = '';
@@ -115,15 +119,12 @@ class HomeController extends GetxController {
           if (transaction.type == custom.TransactionType.transfer ||
               transaction.type == custom.TransactionType.payment) {
             if (transaction.senderId == currentUser.value!.id) {
-              otherUser =
-                  await _firestoreService.getUserById(transaction.receiverId);
+              otherUser = await _firestoreService.getUserById(transaction.receiverId);
             } else {
-              otherUser =
-                  await _firestoreService.getUserById(transaction.senderId);
+              otherUser = await _firestoreService.getUserById(transaction.senderId);
             }
           }
 
-          // Modification des conditions d'annulation pour inclure les dépôts
           canCancel = (transaction.type == custom.TransactionType.transfer ||
                       transaction.type == custom.TransactionType.deposit) &&
               transaction.senderId == currentUser.value!.id &&
@@ -175,7 +176,6 @@ class HomeController extends GetxController {
               } else {
                 description = 'Dépôt';
               }
-              // Modification : montant négatif pour l'expéditeur dans le cas d'un dépôt
               if (transaction.senderId == currentUser.value!.id) {
                 amount = '- ${transaction.amount}';
               } else {
@@ -184,29 +184,26 @@ class HomeController extends GetxController {
               otherUserName = '';
               break;
 
-         case custom.TransactionType.withdrawal:
-  if (transaction.status == 'cancelled') {
-    description = 'Retrait annulé';
-  } else {
-    description = 'Retrait';
-  }
-  // Modifier la logique pour le retrait
-  if (transaction.senderId == currentUser.value!.id) {
-    amount = '- ${transaction.amount}';
-    // Obtenir l'information sur le destinataire pour le retrait
-    final withdrawalReceiver = await _firestoreService.getUserById(transaction.receiverId);
-    otherUserName = withdrawalReceiver != null 
-        ? 'vers ${withdrawalReceiver.firstName} ${withdrawalReceiver.lastName}'
-        : 'vers un agent';
-  } else {
-    amount = '+ ${transaction.amount}';
-    // Obtenir l'information sur l'expéditeur pour le retrait
-    final withdrawalSender = await _firestoreService.getUserById(transaction.senderId);
-    otherUserName = withdrawalSender != null 
-        ? 'de ${withdrawalSender.firstName} ${withdrawalSender.lastName}'
-        : 'd\'un agent';
-  }
-  break;
+            case custom.TransactionType.withdrawal:
+              if (transaction.status == 'cancelled') {
+                description = 'Retrait annulé';
+              } else {
+                description = 'Retrait';
+              }
+              if (transaction.senderId == currentUser.value!.id) {
+                amount = '- ${transaction.amount}';
+                final withdrawalReceiver = await _firestoreService.getUserById(transaction.receiverId);
+                otherUserName = withdrawalReceiver != null 
+                    ? 'vers ${withdrawalReceiver.firstName} ${withdrawalReceiver.lastName}'
+                    : 'vers un agent';
+              } else {
+                amount = '+ ${transaction.amount}';
+                final withdrawalSender = await _firestoreService.getUserById(transaction.senderId);
+                otherUserName = withdrawalSender != null 
+                    ? 'de ${withdrawalSender.firstName} ${withdrawalSender.lastName}'
+                    : 'd\'un agent';
+              }
+              break;
           }
 
           return TransactionDisplay(
@@ -235,7 +232,6 @@ class HomeController extends GetxController {
       final allTransactions = 
           await _firestoreService.getTransactionsByUser(currentUser.value!.id);
       
-      // Modification pour inclure les dépôts
       final transactionToCancel = allTransactions.firstWhere(
         (t) => (t.type == custom.TransactionType.transfer || 
                 t.type == custom.TransactionType.deposit) &&
@@ -243,7 +239,6 @@ class HomeController extends GetxController {
             t.status != 'cancelled'
       );
 
-      // Récupérer les utilisateurs impliqués
       final sender = await _firestoreService.getUserById(transactionToCancel.senderId);
       final receiver = await _firestoreService.getUserById(transactionToCancel.receiverId);
 
@@ -252,11 +247,9 @@ class HomeController extends GetxController {
       }
 
       if (transactionToCancel.type == custom.TransactionType.deposit) {
-        // Logique pour l'annulation d'un dépôt
         sender.balance += transactionToCancel.amount;
         receiver.balance -= transactionToCancel.amount;
       } else {
-        // Logique pour les transferts
         const feePercentage = 0.01; // 1%
         final originalAmount = transactionToCancel.amount;
 
@@ -270,14 +263,10 @@ class HomeController extends GetxController {
         }
       }
 
-      // Mettre à jour le statut de la transaction
       await _firestoreService.cancelTransaction(transactionToCancel, currentUser.value!.id);
-      
-      // Mettre à jour les soldes des utilisateurs
       await _firestoreService.updateUser(sender.id, sender.toMap());
       await _firestoreService.updateUser(receiver.id, receiver.toMap());
       
-      // Rafraîchir les données
       await refreshData();
       
       Get.snackbar(

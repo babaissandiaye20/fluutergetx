@@ -6,8 +6,6 @@ import '../modules/ceiling/views/ceiling_view.dart';
 import '../modules/complete-profile/bindings/complete_profile_binding.dart';
 import '../modules/complete-profile/views/complete_profile_view.dart';
 import '../modules/deposit/bindings/deposit_binding.dart';
-import '../modules/deposit/bindings/deposit_binding.dart';
-import '../modules/deposit/views/deposit_view.dart';
 import '../modules/deposit/views/deposit_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
@@ -15,6 +13,8 @@ import '../modules/login/bindings/login_binding.dart';
 import '../modules/login/views/login_view.dart';
 import '../modules/register/bindings/register_binding.dart';
 import '../modules/register/views/register_view.dart';
+import '../modules/scheduledTransfer/bindings/scheduled_transfer_binding.dart';
+import '../modules/scheduledTransfer/views/scheduled_transfer_view.dart';
 import '../modules/transfer/bindings/transfer_binding.dart';
 import '../modules/transfer/views/transfer_view.dart';
 import '../modules/withdrawal/bindings/withdrawal_binding.dart';
@@ -72,9 +72,15 @@ class AppPages {
       arguments: Get.arguments,
     ),
     GetPage(
-  name: _Paths.CEILING,
-  page: () => const CeilingView(),
-  binding: CeilingBinding(),
-)
+      name: _Paths.CEILING,
+      page: () => const CeilingView(),
+      binding: CeilingBinding(),
+    ),
+  GetPage(
+  name: _Paths.SCHEDULED_TRANSFER,
+  page: () => const ScheduledTransferView(),
+  binding: ScheduledTransferBinding(),
+  arguments: Get.arguments,
+),
   ];
 }

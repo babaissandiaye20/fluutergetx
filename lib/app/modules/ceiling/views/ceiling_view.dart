@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import '../controllers/ceiling_controller.dart';
 
 class CeilingView extends GetView<CeilingController> {
-  const CeilingView({Key? key}) : super(key: key);
+  const CeilingView({super.key});
 
   @override
   Widget build(BuildContext context) {

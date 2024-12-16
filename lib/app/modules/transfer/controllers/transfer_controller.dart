@@ -67,7 +67,7 @@ class TransferController extends GetxController {
         if (contact.phones.isNotEmpty) {
           final phoneNumber = contact.phones.first.number.replaceAll(RegExp(r'\D'), '');
           final dbUser = dbUsers.firstWhereOrNull(
-            (user) => user.phoneNumber?.replaceAll(RegExp(r'\D'), '') == phoneNumber
+            (user) => user.phoneNumber.replaceAll(RegExp(r'\D'), '') == phoneNumber
           );
 
           combinedContacts.add(
@@ -165,7 +165,7 @@ class TransferController extends GetxController {
 
       final user = await _firestoreService.getUserByPhone(cleanedPhone);
       
-      if (user != null && user.phoneNumber != null) {
+      if (user != null) {
         if (isMultipleTransferMode.value) {
           addMultipleReceiver(user);
         } else {
@@ -310,7 +310,7 @@ class TransferController extends GetxController {
 
         // Création de la transaction
        final transaction = custom.Transaction(
-  id: DateTime.now().millisecondsSinceEpoch.toString() + '_${receivers.indexOf(receiver)}',
+  id: '${DateTime.now().millisecondsSinceEpoch}_${receivers.indexOf(receiver)}',
   senderId: sender.id,
   receiverId: receiverUser.id,
   amount: amountPerReceiver,

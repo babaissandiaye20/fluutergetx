@@ -90,7 +90,7 @@ class LoginController {
           await _firestoreService.setUser(firebaseUser.uid, existingUser);
         }
 
-        onSuccess?.call(existingUser!, isFirstLogin);
+        onSuccess?.call(existingUser, isFirstLogin);
         return existingUser;
       }
     } catch (e) {
